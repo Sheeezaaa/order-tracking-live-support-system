@@ -1,5 +1,5 @@
 # 📦 Order Tracking & Live Support System
-### Multi-Protocol Real-Time Architecture (AWT Assignment 4)
+### Multi-Protocol Real-Time Architecture 
 
 A unified full-stack application demonstrating four core web communication protocols (**REST**, **WebSockets**, **JSON-RPC 2.0**, and **Server-Sent Events (SSE)**) running seamlessly within a single Node.js & Express service.
 
@@ -42,32 +42,7 @@ The automated test runner will launch and verify all 4 protocols end-to-end, tes
 
 ---
 
-## 🖥️ User Interface Features
-
-1. **Top Banner (SSE Stream)**:
-   - Listens to `text/event-stream` at `/events`.
-   - Flashes notifications instantly when an administrator broadcasts an alert or when an order is dispatched.
-
-2. **Customer View**:
-   - **Catalog & Checkout (REST)**: Browse live stock, select products, and submit orders with `POST /api/v1/orders`.
-   - **Real-Time Tracker (WebSockets)**: 5-step visual progress stepper (`Placed` → `Confirmed` → `Preparing` → `In Transit` → `Delivered`) updated instantly without page reloads.
-   - **1-on-1 Support Chat (WebSockets)**: Direct messaging channel into the order room with typing indicators.
-   - **Method Actions (JSON-RPC 2.0)**: Trigger transactional actions like `cancelOrder`, `updateShippingAddress`, or `calculateRefund` and inspect the raw JSON-RPC wire frames.
-
-3. **Support Agent / Admin View**:
-   - **Order Dispatch Pipeline**: One-click status buttons (`Confirm`, `Prepare`, `Ship`, `Deliver`) emitting real-time WebSocket events.
-   - **Agent Support Console**: Respond to customer inquiries with canned responses or custom replies.
-   - **Live SSE Broadcast Station**: Trigger unilateral system broadcasts across all connected client browsers.
-
-4. **Live Protocol Traffic Inspector**:
-   - Built-in terminal log at the bottom of the dashboard.
-   - Displays real-time frames with color-coded badges, direction indicators (`OUT ➜` / `IN ⬅`), timestamps, and inspectable JSON payloads.
-   - Filterable by **ALL**, **REST**, **WS**, **RPC**, or **SSE**.
-
----
-
-## 🔌 API & Protocol Examples
-
+## 🔌 API & Protocol 
 ### 1. REST API
 #### Fetch Catalog
 ```http
@@ -75,55 +50,10 @@ GET /api/v1/catalog HTTP/1.1
 Host: localhost:3000
 ```
 #### Create Order
-```http
-POST /api/v1/orders HTTP/1.1
-Host: localhost:3000
-Content-Type: application/json
 
-{
-  "customerName": "Jane Doe",
-  "customerEmail": "jane@example.com",
-  "shippingAddress": "123 Market St, San Francisco, CA",
-  "items": [
-    { "productId": "prod-1", "quantity": 1 }
-  ]
-}
-```
 
 ### 2. JSON-RPC 2.0 (`/rpc`)
 #### Cancel Order
-```http
-POST /rpc HTTP/1.1
-Host: localhost:3000
-Content-Type: application/json
-
-{
-  "jsonrpc": "2.0",
-  "method": "cancelOrder",
-  "params": {
-    "orderId": "ORD-9821",
-    "reason": "Customer requested cancellation"
-  },
-  "id": 101
-}
-```
-**Response:**
-```json
-{
-  "jsonrpc": "2.0",
-  "id": 101,
-  "result": {
-    "success": true,
-    "message": "Order ORD-9821 has been successfully cancelled via JSON-RPC 2.0.",
-    "details": {
-      "orderId": "ORD-9821",
-      "status": "CANCELLED",
-      "refundEligible": true,
-      "refundAmount": 499.98
-    }
-  }
-}
-```
 
 ### 3. Server-Sent Events (`/events`)
 ```http
@@ -132,36 +62,24 @@ Host: localhost:3000
 Accept: text/event-stream
 ```
 **Stream Response Format:**
-```
-id: 1727264400000
-event: system_alert
-data: {"protocol":"SSE","alert":{"id":"alt-1","level":"warning","title":"Flash Sale","message":"15% off all audio gear!"}}
-```
 
 ### 4. WebSockets (Socket.io)
 - **Room Joining**: `socket.emit('join_order', { orderId: 'ORD-9821', role: 'customer' })`
 - **Status Event**: `socket.emit('order_status_update', { orderId: 'ORD-9821', newStatus: 'OUT_FOR_DELIVERY' })`
 - **1-on-1 Chat**: `socket.emit('send_message', { orderId: 'ORD-9821', text: 'Where is my order?', sender: 'Alex' })`
 
+<img width="1910" height="1577" alt="screencapture-localhost-3000-api-v1-orders-2026-09-25-04_50_20" src="https://github.com/user-attachments/assets/e5c1ef5b-1a9f-4e62-b8cb-fd723c09bedd" />
+
+<img width="1910" height="1046" alt="screencapture-localhost-3000-api-v1-catalog-2026-09-25-04_50_49" src="https://github.com/user-attachments/assets/c43dd7ef-bb5b-4afc-8769-f10f1592ef0f" />
+
+<img width="1910" height="2477" alt="screencapture-localhost-3000-2026-09-25-05_51_49" src="https://github.com/user-attachments/assets/4caa5ee6-ccd2-4998-9a28-b8bd49b7812f" />
+
+<img width="1910" height="2477" alt="screencapture-localhost-3000-2026-09-25-05_52_13" src="https://github.com/user-attachments/assets/2411c791-2b35-4795-b320-7f16770a9152" />
+
+
+
+
+
+
 ---
 
-## 📁 Directory Structure
-```
-├── package.json
-├── test-protocols.js           # Automated end-to-end multi-protocol test suite
-├── README.md
-├── server/
-│   ├── index.js                # Express & Socket.io server initialization
-│   ├── data/
-│   │   └── store.js            # In-memory store (catalog, orders, chats, alerts)
-│   ├── routes/
-│   │   ├── rest.js             # REST endpoints (/api/v1/catalog, /api/v1/orders)
-│   │   ├── rpc.js              # JSON-RPC 2.0 router (/rpc)
-│   │   └── sse.js              # Server-Sent Events stream (/events)
-│   └── sockets/
-│       └── socketHandler.js    # Socket.io order tracking and 1-on-1 chat
-└── public/
-    ├── index.html              # Single Page Application UI with dual roles
-    ├── style.css               # Stepper styling & inspector theme
-    └── app.js                  # Frontend client controller & wire logger
-```
