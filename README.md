@@ -76,6 +76,7 @@ Accept: text/event-stream
 
 <img width="1910" height="2477" alt="screencapture-localhost-3000-2026-09-25-05_52_13" src="https://github.com/user-attachments/assets/2411c791-2b35-4795-b320-7f16770a9152" />
 
+<img width="1915" height="418" alt="Screenshot 2026-09-25 065913" src="https://github.com/user-attachments/assets/77930b45-1da1-4ea5-9dca-424b996dbbe7" />
 
 
 
