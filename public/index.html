@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Real-Time Order Tracking & Live Support Hub</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <!-- Socket.io Client -->
+  <script src="/socket.io/socket.io.js"></script>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col font-sans selection:bg-indigo-500 selection:text-white">
+
+  <!-- TOP SSE LIVE BROADCAST TICKER -->
+  <div id="sse-alert-banner" class="hidden bg-gradient-to-r from-amber-600 via-rose-600 to-indigo-600 text-white px-4 py-2 text-sm font-medium shadow-md transition-all duration-300">
+    <div class="max-w-7xl mx-auto flex items-center justify-between">
+      <div class="flex items-center space-x-3">
+        <span class="flex h-2.5 w-2.5 relative">
+          <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75"></span>
+          <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-white"></span>
+        </span>
+        <span class="bg-black/30 text-xs uppercase tracking-wider px-2 py-0.5 rounded font-mono font-bold">SSE Push</span>
+        <span id="sse-banner-title" class="font-bold"></span>
+        <span id="sse-banner-text" class="text-white/90"></span>
+      </div>
+      <button onclick="dismissSseBanner()" class="text-white/80 hover:text-white text-xs px-2 py-1 rounded bg-black/20 hover:bg-black/40">
+        <i class="fa-solid fa-xmark"></i> Dismiss
+      </button>
+    </div>
+  </div>
+
+  <!-- NAVIGATION & HEADER -->
+  <header class="bg-slate-900/90 border-b border-slate-800 backdrop-blur sticky top-0 z-40">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
+      <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+        <div class="flex items-center space-x-3">
+          <div class="h-10 w-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-violet-500 flex items-center justify-center text-white shadow-lg shadow-indigo-500/20">
+            <i class="fa-solid fa-bolt text-lg"></i>
+          </div>
+          <div>
+            <h1 class="text-lg font-bold tracking-tight text-white flex items-center gap-2">
+              OrderFlow & Live Support
+              <span class="text-xs bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 px-2 py-0.5 rounded-full font-mono">Assignment 4</span>
+            </h1>
+            <p class="text-xs text-slate-400">Multi-Protocol Showcase: REST • WebSockets • JSON-RPC 2.0 • SSE</p>
+          </div>
+        </div>
+
+        <!-- PROTOCOL BADGES -->
+        <div class="flex flex-wrap items-center gap-2 text-xs font-mono">
+          <div class="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-slate-800/80 border border-slate-700" title="REST API (Catalog & Orders)">
+            <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+            <span class="text-slate-300 font-semibold">REST</span>
+            <span class="text-slate-400 text-[10px]">/api/v1</span>
+          </div>
+          <div class="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-slate-800/80 border border-slate-700" title="WebSockets (Real-time updates & Chat)">
+            <span id="badge-ws-dot" class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+            <span class="text-slate-300 font-semibold">Socket.io</span>
+            <span id="badge-ws-status" class="text-slate-400 text-[10px]">Online</span>
+          </div>
+          <div class="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-slate-800/80 border border-slate-700" title="JSON-RPC 2.0 (Transactional Methods)">
+            <span class="w-2 h-2 rounded-full bg-blue-400"></span>
+            <span class="text-slate-300 font-semibold">JSON-RPC</span>
+            <span class="text-slate-400 text-[10px]">/rpc</span>
+          </div>
+          <div class="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-slate-800/80 border border-slate-700" title="Server-Sent Events (System Broadcasts)">
+            <span id="badge-sse-dot" class="w-2 h-2 rounded-full bg-purple-400 animate-pulse"></span>
+            <span class="text-slate-300 font-semibold">SSE</span>
+            <span id="badge-sse-status" class="text-slate-400 text-[10px]">Listening</span>
+          </div>
+        </div>
+
+        <!-- RIGHT CONTROLS: THEME SELECTOR & VIEW TOGGLE -->
+        <div class="flex flex-wrap items-center gap-2">
+          <!-- THEME SELECTOR -->
+          <div class="flex items-center space-x-1.5 bg-slate-800 p-1.5 rounded-lg border border-slate-700 text-xs shadow-sm">
+            <i class="fa-solid fa-palette text-cyan-400 pl-1"></i>
+            <label for="theme-selector" class="sr-only">Choose Color Theme</label>
+            <select id="theme-selector" onchange="changeTheme(this.value)" class="bg-transparent text-slate-200 text-xs font-medium focus:outline-none cursor-pointer pr-1">
+              <option value="cyber-neon" class="bg-slate-900 text-white">⚡ Cyber Neon</option>
+              <option value="midnight-ocean" class="bg-slate-900 text-white">🌊 Midnight Ocean</option>
+              <option value="emerald-matrix" class="bg-slate-900 text-white">🌲 Emerald Matrix</option>
+              <option value="crimson-sunset" class="bg-slate-900 text-white">🔥 Crimson Sunset</option>
+              <option value="slate-dark" class="bg-slate-900 text-white">🌑 Slate Dark</option>
+              <option value="nordic-light" class="bg-slate-900 text-white">☀️ Nordic Light</option>
+            </select>
+          </div>
+
+          <!-- VIEW TOGGLE BUTTONS -->
+          <div class="flex items-center bg-slate-800 p-1 rounded-lg border border-slate-700 text-xs">
+            <button id="view-btn-split" onclick="switchView('split')" class="px-3 py-1.5 rounded-md font-medium transition text-white bg-indigo-600 shadow">
+              <i class="fa-solid fa-columns mr-1"></i> Split View
+            </button>
+            <button id="view-btn-customer" onclick="switchView('customer')" class="px-3 py-1.5 rounded-md font-medium transition text-slate-300 hover:text-white">
+              <i class="fa-solid fa-user mr-1"></i> Customer
+            </button>
+            <button id="view-btn-agent" onclick="switchView('agent')" class="px-3 py-1.5 rounded-md font-medium transition text-slate-300 hover:text-white">
+              <i class="fa-solid fa-headset mr-1"></i> Support Agent
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- MAIN APP CONTAINER -->
+  <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+    <div id="views-container" class="grid grid-cols-1 lg:grid-cols-2 gap-6 transition-all duration-300">
+
+      <!-- ============================================== -->
+      <!-- VIEW 1: CUSTOMER VIEW                          -->
+      <!-- ============================================== -->
+      <section id="customer-panel" class="flex flex-col space-y-6">
+        <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+          <div class="flex items-center space-x-2">
+            <span class="p-2 rounded-lg bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
+              <i class="fa-solid fa-basket-shopping"></i>
+            </span>
+            <div>
+              <h2 class="text-base font-bold text-white">Customer Portal</h2>
+              <p class="text-xs text-slate-400">Order placement (REST), Live tracking (WebSocket), Actions (JSON-RPC)</p>
+            </div>
+          </div>
+          <span class="text-xs px-2 py-1 rounded bg-indigo-950 text-indigo-300 border border-indigo-800 font-mono">Role: Customer</span>
+        </div>
+
+        <!-- 1. Catalog & Quick Order Creation (REST) -->
+        <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 shadow-sm">
+          <div class="flex items-center justify-between mb-3">
+            <div class="flex items-center space-x-2">
+              <span class="text-xs uppercase tracking-wider font-mono font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">REST API</span>
+              <h3 class="text-sm font-semibold text-slate-200">Product Catalog & Checkout</h3>
+            </div>
+            <button onclick="loadCatalog()" class="text-xs text-slate-400 hover:text-slate-200">
+              <i class="fa-solid fa-arrows-rotate"></i> Refresh Catalog
+            </button>
+          </div>
+
+          <!-- Product Picker Grid -->
+          <div id="catalog-list" class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4 max-h-56 overflow-y-auto pr-1">
+            <!-- Dynamic products injected here -->
+          </div>
+
+          <!-- Quick Order Form -->
+          <div class="bg-slate-950/60 p-3 rounded-lg border border-slate-800">
+            <h4 class="text-xs font-semibold text-slate-300 mb-2 flex items-center justify-between">
+              <span>Checkout Order Details</span>
+              <span id="selected-product-summary" class="text-indigo-400 font-normal">Select an item above</span>
+            </h4>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+              <input id="order-customer-name" type="text" placeholder="Customer Name" value="Alex Morgan" class="bg-slate-900 border border-slate-700 rounded px-2.5 py-1.5 focus:border-indigo-500 focus:outline-none">
+              <input id="order-customer-email" type="email" placeholder="Customer Email" value="alex.morgan@example.com" class="bg-slate-900 border border-slate-700 rounded px-2.5 py-1.5 focus:border-indigo-500 focus:outline-none">
+            </div>
+            <div class="mt-2 text-xs">
+              <input id="order-shipping-address" type="text" placeholder="Shipping Address" value="742 Evergreen Terrace, Springfield, OR" class="w-full bg-slate-900 border border-slate-700 rounded px-2.5 py-1.5 focus:border-indigo-500 focus:outline-none">
+            </div>
+            <div class="mt-3 flex items-center justify-between">
+              <div class="text-xs text-slate-400">
+                Method: <code class="text-emerald-400 font-mono">POST /api/v1/orders</code>
+              </div>
+              <button onclick="submitOrderViaRest()" class="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-medium px-4 py-2 rounded-lg flex items-center gap-1.5 shadow transition">
+                <i class="fa-solid fa-cart-arrow-down"></i> Place Order (REST)
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 2. Real-Time Order Tracking (WebSockets) -->
+        <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 shadow-sm">
+          <div class="flex items-center justify-between mb-3">
+            <div class="flex items-center space-x-2">
+              <span class="text-xs uppercase tracking-wider font-mono font-bold text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20">WebSockets</span>
+              <h3 class="text-sm font-semibold text-slate-200">Real-Time Order Tracker</h3>
+            </div>
+            <!-- Order selector -->
+            <div class="flex items-center space-x-2">
+              <label for="customer-order-select" class="text-xs text-slate-400">Track:</label>
+              <select id="customer-order-select" onchange="onCustomerSelectOrder(this.value)" class="bg-slate-950 border border-slate-700 text-xs rounded px-2 py-1 focus:border-indigo-500 focus:outline-none text-slate-200">
+                <!-- Dynamically loaded -->
+              </select>
+            </div>
+          </div>
+
+          <!-- Order Summary Card -->
+          <div id="tracker-summary-box" class="bg-slate-950/80 p-3 rounded-lg border border-slate-800 mb-4">
+            <div class="flex items-center justify-between">
+              <div>
+                <span id="tracker-order-id" class="text-sm font-bold font-mono text-indigo-300">ORD-9821</span>
+                <span id="tracker-order-date" class="text-[11px] text-slate-400 ml-2"></span>
+              </div>
+              <div id="tracker-status-pill" class="text-xs font-mono font-bold px-2.5 py-0.5 rounded-full bg-blue-500/20 text-blue-400 border border-blue-500/30">
+                CONFIRMED
+              </div>
+            </div>
+            <div id="tracker-items-list" class="mt-2 text-xs text-slate-300 space-y-1">
+              <!-- Item list injected -->
+            </div>
+            <div class="mt-2 text-xs text-slate-400 border-t border-slate-800/80 pt-2 flex items-center justify-between">
+              <div><i class="fa-solid fa-location-dot text-rose-400 mr-1"></i> <span id="tracker-address">Address</span></div>
+              <div class="font-bold text-white" id="tracker-total">$0.00</div>
+            </div>
+          </div>
+
+          <!-- Interactive 5-Step Stepper -->
+          <div class="relative py-4 px-2">
+            <div class="absolute top-1/2 left-6 right-6 h-1 bg-slate-800 -translate-y-1/2 z-0">
+              <div id="stepper-progress-bar" class="h-full bg-gradient-to-r from-indigo-500 to-emerald-400 transition-all duration-500 w-1/4"></div>
+            </div>
+            <div class="relative z-10 flex justify-between">
+              <!-- Step 1 -->
+              <div id="step-node-PLACED" class="flex flex-col items-center">
+                <div class="step-icon w-8 h-8 rounded-full bg-indigo-600 text-white flex items-center justify-center text-xs shadow-md border-2 border-slate-900 transition-all duration-300">
+                  <i class="fa-solid fa-file-invoice"></i>
+                </div>
+                <span class="text-[10px] mt-1.5 font-medium text-slate-300">Placed</span>
+              </div>
+              <!-- Step 2 -->
+              <div id="step-node-CONFIRMED" class="flex flex-col items-center">
+                <div class="step-icon w-8 h-8 rounded-full bg-slate-800 text-slate-400 flex items-center justify-center text-xs shadow-md border-2 border-slate-900 transition-all duration-300">
+                  <i class="fa-solid fa-check"></i>
+                </div>
+                <span class="text-[10px] mt-1.5 font-medium text-slate-400">Confirmed</span>
+              </div>
+              <!-- Step 3 -->
+              <div id="step-node-PREPARING" class="flex flex-col items-center">
+                <div class="step-icon w-8 h-8 rounded-full bg-slate-800 text-slate-400 flex items-center justify-center text-xs shadow-md border-2 border-slate-900 transition-all duration-300">
+                  <i class="fa-solid fa-box"></i>
+                </div>
+                <span class="text-[10px] mt-1.5 font-medium text-slate-400">Preparing</span>
+              </div>
+              <!-- Step 4 -->
+              <div id="step-node-OUT_FOR_DELIVERY" class="flex flex-col items-center">
+                <div class="step-icon w-8 h-8 rounded-full bg-slate-800 text-slate-400 flex items-center justify-center text-xs shadow-md border-2 border-slate-900 transition-all duration-300">
+                  <i class="fa-solid fa-truck-fast"></i>
+                </div>
+                <span class="text-[10px] mt-1.5 font-medium text-slate-400">In Transit</span>
+              </div>
+              <!-- Step 5 -->
+              <div id="step-node-DELIVERED" class="flex flex-col items-center">
+                <div class="step-icon w-8 h-8 rounded-full bg-slate-800 text-slate-400 flex items-center justify-center text-xs shadow-md border-2 border-slate-900 transition-all duration-300">
+                  <i class="fa-solid fa-house-chimney-check"></i>
+                </div>
+                <span class="text-[10px] mt-1.5 font-medium text-slate-400">Delivered</span>
+              </div>
+            </div>
+          </div>
+          <!-- Cancelled Notice (hidden by default) -->
+          <div id="tracker-cancelled-alert" class="hidden mt-2 p-2.5 bg-rose-950/50 border border-rose-800 text-rose-300 rounded text-xs flex items-center gap-2">
+            <i class="fa-solid fa-ban text-rose-400"></i>
+            <span>This order was <strong>CANCELLED</strong>. Reason: <span id="tracker-cancel-reason">N/A</span></span>
+          </div>
+        </div>
+
+        <!-- 3. JSON-RPC 2.0 Actions Card -->
+        <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 shadow-sm">
+          <div class="flex items-center justify-between mb-3">
+            <div class="flex items-center space-x-2">
+              <span class="text-xs uppercase tracking-wider font-mono font-bold text-blue-400 bg-blue-500/10 px-2 py-0.5 rounded border border-blue-500/20">JSON-RPC 2.0</span>
+              <h3 class="text-sm font-semibold text-slate-200">Order Method Actions (/rpc)</h3>
+            </div>
+            <span class="text-[11px] font-mono text-slate-400">Spec: jsonrpc: "2.0"</span>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 mb-3">
+            <button onclick="rpcCancelOrderModal()" class="px-3 py-2 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/30 text-xs font-medium flex items-center justify-center gap-1.5 transition">
+              <i class="fa-solid fa-xmark"></i> Cancel Order
+            </button>
+            <button onclick="rpcUpdateAddressModal()" class="px-3 py-2 rounded-lg bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 text-xs font-medium flex items-center justify-center gap-1.5 transition">
+              <i class="fa-solid fa-pen-to-square"></i> Change Address
+            </button>
+            <button onclick="rpcCalculateRefund()" class="px-3 py-2 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 text-xs font-medium flex items-center justify-center gap-1.5 transition">
+              <i class="fa-solid fa-calculator"></i> Calc Refund
+            </button>
+          </div>
+
+          <!-- RPC Payload Preview Box -->
+          <div class="bg-slate-950 p-2.5 rounded border border-slate-800 font-mono text-[11px]">
+            <div class="text-slate-400 flex justify-between items-center mb-1">
+              <span>Last RPC Wire Exchange:</span>
+              <span id="rpc-status-tag" class="text-emerald-400 font-bold">200 OK</span>
+            </div>
+            <pre id="rpc-preview-box" class="text-slate-300 max-h-24 overflow-y-auto">// Click an action above to invoke a JSON-RPC 2.0 method</pre>
+          </div>
+        </div>
+
+        <!-- 4. 1-on-1 Support Chat (Customer Side) -->
+        <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 shadow-sm flex flex-col h-80">
+          <div class="flex items-center justify-between pb-2 border-b border-slate-800">
+            <div class="flex items-center space-x-2">
+              <span class="text-xs uppercase tracking-wider font-mono font-bold text-violet-400 bg-violet-500/10 px-2 py-0.5 rounded border border-violet-500/20">WebSockets Chat</span>
+              <h3 class="text-sm font-semibold text-slate-200">Order Support Chat Room</h3>
+            </div>
+            <div class="flex items-center space-x-1.5 text-xs text-slate-400 font-mono">
+              <i class="fa-solid fa-hashtag text-[10px]"></i>
+              <span id="chat-room-badge">order_ORD-9821</span>
+            </div>
+          </div>
+
+          <!-- Messages scroll area -->
+          <div id="customer-chat-messages" class="flex-1 overflow-y-auto py-3 space-y-2.5 pr-1 text-xs">
+            <!-- Messages inserted dynamically -->
+          </div>
+
+          <!-- Typing indicator -->
+          <div id="customer-typing-notice" class="h-4 text-[11px] text-indigo-400 italic font-mono"></div>
+
+          <!-- Chat Input -->
+          <form onsubmit="handleCustomerSendMessage(event)" class="pt-2 flex items-center gap-2 border-t border-slate-800">
+            <input id="customer-chat-input" oninput="handleTyping('customer')" type="text" placeholder="Type a message to support agent..." class="flex-1 bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-xs focus:border-indigo-500 focus:outline-none">
+            <button type="submit" class="bg-indigo-600 hover:bg-indigo-500 text-white px-3.5 py-2 rounded-lg text-xs font-medium transition flex items-center gap-1 shadow">
+              <i class="fa-solid fa-paper-plane"></i> Send
+            </button>
+          </form>
+        </div>
+      </section>
+
+      <!-- ============================================== -->
+      <!-- VIEW 2: SUPPORT AGENT / ADMIN VIEW             -->
+      <!-- ============================================== -->
+      <section id="agent-panel" class="flex flex-col space-y-6">
+        <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+          <div class="flex items-center space-x-2">
+            <span class="p-2 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+              <i class="fa-solid fa-headset"></i>
+            </span>
+            <div>
+              <h2 class="text-base font-bold text-white">Support & Fulfillment Desk</h2>
+              <p class="text-xs text-slate-400">Order status dispatching, 1-on-1 agent chat, and SSE broadcasts</p>
+            </div>
+          </div>
+          <span class="text-xs px-2 py-1 rounded bg-emerald-950 text-emerald-300 border border-emerald-800 font-mono">Role: Support Agent</span>
+        </div>
+
+        <!-- 1. Orders Management & Real-Time Status Dispatcher -->
+        <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 shadow-sm">
+          <div class="flex items-center justify-between mb-3">
+            <div class="flex items-center space-x-2">
+              <span class="text-xs uppercase tracking-wider font-mono font-bold text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20">WebSockets Dispatch</span>
+              <h3 class="text-sm font-semibold text-slate-200">Active Orders Pipeline</h3>
+            </div>
+            <button onclick="refreshOrders()" class="text-xs text-slate-400 hover:text-slate-200">
+              <i class="fa-solid fa-arrows-rotate"></i> Refresh
+            </button>
+          </div>
+
+          <div id="admin-orders-list" class="space-y-3 max-h-72 overflow-y-auto pr-1">
+            <!-- Dynamic order cards with status dispatch buttons -->
+          </div>
+        </div>
+
+        <!-- 2. Support Agent 1-on-1 Chat Console -->
+        <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 shadow-sm flex flex-col h-80">
+          <div class="flex items-center justify-between pb-2 border-b border-slate-800">
+            <div class="flex items-center space-x-2">
+              <span class="text-xs uppercase tracking-wider font-mono font-bold text-violet-400 bg-violet-500/10 px-2 py-0.5 rounded border border-violet-500/20">WebSockets Agent Chat</span>
+              <h3 class="text-sm font-semibold text-slate-200">Customer Conversation</h3>
+            </div>
+            <div class="flex items-center space-x-1.5 text-xs text-slate-400">
+              <span class="text-emerald-400"><i class="fa-solid fa-circle text-[8px]"></i> Agent Sarah</span>
+            </div>
+          </div>
+
+          <!-- Agent Chat messages -->
+          <div id="agent-chat-messages" class="flex-1 overflow-y-auto py-3 space-y-2.5 pr-1 text-xs">
+            <!-- Messages inserted dynamically -->
+          </div>
+
+          <!-- Typing indicator -->
+          <div id="agent-typing-notice" class="h-4 text-[11px] text-emerald-400 italic font-mono"></div>
+
+          <!-- Quick Canned Responses -->
+          <div class="flex items-center gap-1.5 pb-2 overflow-x-auto text-[11px]">
+            <button onclick="sendQuickReply('Checking with our fulfillment team right away!')" class="whitespace-nowrap px-2 py-0.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded border border-slate-700">
+              "Checking with team"
+            </button>
+            <button onclick="sendQuickReply('Your package has been prepared and queued for carrier pickup.')" class="whitespace-nowrap px-2 py-0.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded border border-slate-700">
+              "Package prepared"
+            </button>
+            <button onclick="sendQuickReply('Tracking confirms courier is en route to your address.')" class="whitespace-nowrap px-2 py-0.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded border border-slate-700">
+              "Courier en route"
+            </button>
+          </div>
+
+          <!-- Agent Input -->
+          <form onsubmit="handleAgentSendMessage(event)" class="pt-2 flex items-center gap-2 border-t border-slate-800">
+            <input id="agent-chat-input" oninput="handleTyping('agent')" type="text" placeholder="Reply to customer as Support Agent..." class="flex-1 bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-xs focus:border-emerald-500 focus:outline-none">
+            <button type="submit" class="bg-emerald-600 hover:bg-emerald-500 text-white px-3.5 py-2 rounded-lg text-xs font-medium transition flex items-center gap-1 shadow">
+              <i class="fa-solid fa-reply"></i> Reply
+            </button>
+          </form>
+        </div>
+
+        <!-- 3. Server-Sent Events (SSE) Live Broadcast Station -->
+        <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 shadow-sm">
+          <div class="flex items-center justify-between mb-3">
+            <div class="flex items-center space-x-2">
+              <span class="text-xs uppercase tracking-wider font-mono font-bold text-purple-400 bg-purple-500/10 px-2 py-0.5 rounded border border-purple-500/20">Server-Sent Events (SSE)</span>
+              <h3 class="text-sm font-semibold text-slate-200">Push Live System Alert (/events)</h3>
+            </div>
+            <span class="text-[11px] font-mono text-purple-300" id="sse-client-count">Active SSE Streams: 1</span>
+          </div>
+
+          <p class="text-xs text-slate-400 mb-3">
+            Broadcast an immediate unilateral message to all active connected browsers via continuous HTTP text/event-stream.
+          </p>
+
+          <form onsubmit="handleSendSseBroadcast(event)" class="space-y-2.5">
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+              <div class="sm:col-span-2">
+                <input id="sse-broadcast-title" type="text" placeholder="Alert Title (e.g. Flash Sale / Logistics Delay)" value="⚡ Flash Weekend Deal: 15% Off All Audio!" class="w-full bg-slate-950 border border-slate-700 rounded px-2.5 py-1.5 text-xs focus:border-purple-500 focus:outline-none">
+              </div>
+              <div>
+                <select id="sse-broadcast-level" class="w-full bg-slate-950 border border-slate-700 rounded px-2 py-1.5 text-xs text-slate-200 focus:border-purple-500 focus:outline-none">
+                  <option value="info">Info (Blue)</option>
+                  <option value="warning">Warning (Yellow)</option>
+                  <option value="danger">Urgent / Delay (Red)</option>
+                  <option value="success">Success / Promo (Green)</option>
+                </select>
+              </div>
+            </div>
+            <input id="sse-broadcast-message" type="text" placeholder="Detailed message payload to stream..." value="Use code FLASH15 at checkout. Free next-day courier delivery included." class="w-full bg-slate-950 border border-slate-700 rounded px-2.5 py-1.5 text-xs focus:border-purple-500 focus:outline-none">
+            <div class="flex items-center justify-between pt-1">
+              <span class="text-[11px] text-slate-400 font-mono">Stream: <code class="text-purple-400">text/event-stream</code></span>
+              <button type="submit" class="bg-purple-600 hover:bg-purple-500 text-white text-xs font-medium px-4 py-2 rounded-lg flex items-center gap-1.5 shadow transition">
+                <i class="fa-solid fa-tower-broadcast"></i> Push SSE Broadcast
+              </button>
+            </div>
+          </form>
+        </div>
+      </section>
+
+    </div>
+
+    <!-- ============================================== -->
+    <!-- REAL-TIME PROTOCOL TRAFFIC INSPECTOR / TERMINAL -->
+    <!-- ============================================== -->
+    <section class="mt-8 bg-slate-900 border border-slate-800 rounded-xl overflow-hidden shadow-lg">
+      <div class="bg-slate-950 px-4 py-3 border-b border-slate-800 flex flex-wrap items-center justify-between gap-2">
+        <div class="flex items-center space-x-2">
+          <i class="fa-solid fa-terminal text-indigo-400 text-xs"></i>
+          <h3 class="text-xs font-bold uppercase tracking-wider text-slate-200 font-mono">Live Protocol Traffic Inspector</h3>
+          <span class="text-[10px] bg-slate-800 text-slate-400 px-2 py-0.5 rounded-full font-mono" id="log-count">0 frames</span>
+        </div>
+
+        <!-- Protocol Filters -->
+        <div class="flex items-center space-x-1 text-xs">
+          <button onclick="filterLogs('ALL')" class="protocol-filter-btn px-2.5 py-1 rounded font-mono text-[11px] bg-indigo-600 text-white font-bold" data-proto="ALL">ALL</button>
+          <button onclick="filterLogs('REST')" class="protocol-filter-btn px-2.5 py-1 rounded font-mono text-[11px] bg-slate-800 text-slate-400 hover:text-white" data-proto="REST">REST</button>
+          <button onclick="filterLogs('WS')" class="protocol-filter-btn px-2.5 py-1 rounded font-mono text-[11px] bg-slate-800 text-slate-400 hover:text-white" data-proto="WS">WS (Socket.io)</button>
+          <button onclick="filterLogs('RPC')" class="protocol-filter-btn px-2.5 py-1 rounded font-mono text-[11px] bg-slate-800 text-slate-400 hover:text-white" data-proto="RPC">JSON-RPC 2.0</button>
+          <button onclick="filterLogs('SSE')" class="protocol-filter-btn px-2.5 py-1 rounded font-mono text-[11px] bg-slate-800 text-slate-400 hover:text-white" data-proto="SSE">SSE</button>
+          <button onclick="clearInspectorLogs()" class="ml-2 text-slate-500 hover:text-rose-400 text-xs px-2 py-1" title="Clear inspector logs">
+            <i class="fa-solid fa-trash-can"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- Traffic Terminal Output -->
+      <div id="inspector-console" class="p-3 font-mono text-[11px] h-60 overflow-y-auto space-y-1.5 bg-slate-950/90 selection:bg-indigo-900">
+        <!-- Live traffic entries -->
+      </div>
+    </section>
+  </main>
+
+  <!-- FOOTER -->
+  <footer class="bg-slate-950 border-t border-slate-900 py-4 text-center text-xs text-slate-500">
+    <div class="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-2">
+      <div>Order Tracking & Live Support System • Advanced Web Technologies (AWT) Assignment 4</div>
+      <div class="font-mono text-[11px] text-slate-400">
+        Node.js + Express + Socket.io + EventSource + JSON-RPC 2.0
+      </div>
+    </div>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>

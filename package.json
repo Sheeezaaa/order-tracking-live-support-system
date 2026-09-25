@@ -1,0 +1,19 @@
+{
+  "name": "order-tracking-live-support",
+  "version": "1.0.0",
+  "description": "Real-time Order Tracking & Live Support System demonstrating REST, WebSockets, JSON-RPC 2.0, and SSE",
+  "main": "server/index.js",
+  "scripts": {
+    "start": "node server/index.js",
+    "dev": "node --watch server/index.js",
+    "test": "node test-protocols.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.19.2",
+    "socket.io": "^4.7.5"
+  },
+  "devDependencies": {
+    "socket.io-client": "^4.8.4"
+  }
+}
